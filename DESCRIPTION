@@ -1,13 +1,24 @@
 Package: smalltableobject
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Database Table Accessed As Data Frame
+Version: 0.1
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Dan",
+           family = "Gustafsson",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
-           comment = structure("YOUR-ORCID-ID", .Names = "ORCID"))
-Description: What the package does (one paragraph).
-License: What license it uses
+           email = "dan0704090017@hotmail.com",
+           comment = structure("0000-0003-0661-4591", .Names = "ORCID"))
+Description: Use a sql-database table as if a local data frame. 
+    Table should be small-ish, as it will be downloaded to memory.
+    Reading and writing the local dataframe is done as usual with [,]<-.
+    When local dataframe changes, the entire data frame will be
+    written to the data base. Column based hashing ensures that the local
+    and remote tables are in sync at each step.
+License: GPL-2
 Encoding: UTF-8
 LazyData: true
+Imports:
+  DBI,
+  checkmate,
+  RSQLite,
+  digest
+RoxygenNote: 6.1.1
