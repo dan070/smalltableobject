@@ -217,7 +217,7 @@ What if some joker changes the table you are working on? And you assign your cha
 
 With an advanced hashing of column values, the local data and the remote data are compared. Any differences will halt any updating that you are about to do. So the STO is extremely well behaved.
 
-Check this example where some lines are added to underlying table...
+Check this example where some lines are added to underlying table.
 
 
 
