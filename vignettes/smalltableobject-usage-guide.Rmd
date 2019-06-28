@@ -1,0 +1,227 @@
+---
+title: "smalltableobject-usage-guide"
+author: "Vignette by Dan G"
+date: "Rendered on `r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Usage Guide to smalltableobject}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#---"
+)
+create_test_data <- function(conn, dbtype = "sqlite", n = 100, seed = 20190427){
+  #checkmate::assert_choice(dbtype, choices = c("sqlite"))
+  #checkmate::assert_true(DBI::dbIsValid(conn))
+  
+  if(dbtype == "sqlite"){
+    
+    # Create connection object to sqlite.
+    con_temp <- conn
+    #DBI::dbListTables(con_temp)
+    
+    # Create a table with all pertinent datatypes
+    #   -Date/time specific class is not an option for sqlite.
+    #   -SQLIte has 4 "storage classes" and 1 column can mix different types(!).
+    #   -More on data types : http://www.sqlitetutorial.net/sqlite-data-types/
+    DBI::dbExecute(con_temp, "CREATE TABLE test1 (a int , b real , c text , d blob )")
+    
+    # Insert 100 random rows for each column.
+    #   -No missing values.
+    #   -Ensure both positive and negative numerics.
+    #   -Ensure empty strings, but not NULLs/NA. Ensure åäö nordic characters in strings.
+    #   -Ensure dates in the past, and the future. (not applicable here)
+    DBI::dbExecute(con_temp, "INSERT INTO test1
+                 VALUES(  
+                 9223372036854775807, 
+                 9.0, 
+                 'abcdefghijklmnopqrstuvxyzåäö 1234567890?!', 
+                 x'050015a0' ), 
+                  ( 
+                 -9223372036854775805, 
+                 -9.9, 
+                 '', 
+                 x'0419ffff' )
+                 ")
+    # Set seed & table size.
+    size_n <- n
+    set.seed(seed = seed, kind = "default")
+    
+    # Generate random numbers to df, and ...
+    randomrows <- data.frame(
+      a = sample.int(n = 999999999999, size = size_n) * sample(
+        x = c(-1, 1),
+        size = size_n,
+        replace = T
+      ),
+      b = runif(
+        n = size_n,
+        min = -99999999,
+        max = 99999999
+      ),
+      c = replicate(n = size_n, expr = paste("'", paste(
+        sample(
+          x = c(LETTERS, letters),
+          size = 10,
+          replace = T
+        ), collapse = ""
+      ), "'", sep = "")  ),
+      d = replicate(n = size_n, expr = paste(
+        "x'", paste(sample(
+          x = c(0:9, letters[1:6]),
+          size = 10,
+          replace = T
+        ), collapse = ""), "'", sep = ""
+      ))
+    )
+    
+    # ... prep for SQL insert...
+    inserts <-
+      paste(apply(
+        X = randomrows,
+        MARGIN = 1,
+        FUN = function(x)
+          paste("(", paste(x, collapse = ","), ")")
+      ), collapse = ",")
+    
+    # ... and insert into data base table.
+    DBI::dbExecute(con_temp, paste("INSERT INTO test1
+                                 VALUES", inserts))
+    # Disconnect db connection.
+    #DBI::dbDisconnect(con_temp)
+    
+    
+    
+  }
+  
+  return(T)
+}
+
+get_sto <- function(n = 100, seed = 20202020){
+  tryCatch({
+    # Create data and an object.
+    tf <- tempfile()
+    create_test_data(conn = DBI::dbConnect(drv = RSQLite::SQLite(), dbname = tf), n = n, seed = seed)
+    sto2 <- NULL
+    sto2 <- SmallTableObject$new(dbtype = "sqlite", host = tf, tablename = "test1")
+    return(sto2)    
+  }, error = function(e){
+    stop("Couldnt create new object.")
+  })#end trycatch
+}  
+
+
+
+```
+
+# Package SmallTableObject
+
+Tagline: Tired of handling small tables in a SQL-database? 
+
+### What this package does for you
+
+- Loads one SQL-table into local memory
+- Allows square brackets `[ , ]` notation to access it
+- Invisibly syncs back to DB after local changes
+- Strong type checking prevents R:s dynamic data frames from crashing the DB
+
+
+Think if you could access and manipulate a pesky little table just as easy as a data frame? Just using base R notation. Now, with `smalltableobject`, SQL-tables are just as easy as data frames. You're welcome.
+
+Package `smalltableobject` makes a (small) SQL-table into an object. Which supports [x, y] - notation. All for you, the RAD (Rock-star Analyst or Developer). 
+
+The package loads an SQL-table into memory. Changes overwrites the underlying table. Not elegant, but brutal.
+
+
+### Try the STO in action with random test data
+
+Start using the features of `smalltableobject` now! Or STO, or sto, for short. Yes, it was acctually developed in Stockholm, Sweden.
+
+Creating random test data, is done for demo purposes with a table-creating function. As default we make 102 rows of data, with 4 columns. The last column is a raw byte column, special for sqlite-tables.
+
+```{r setup}
+library(smalltableobject) ### Load the suspect up.
+
+tmpfile <- tempfile(fileext = ".sqlite") ### Temporary db.
+tempfile_con <- DBI::dbConnect(drv = RSQLite::SQLite(), dbname = tmpfile) ### Connection.
+create_test_data(conn = tempfile_con) ### Magic function creates test data.
+```
+
+
+### Create STO object from 'test1' table
+
+Behold! a small SQL-table `test1` for demo purps, on disk.
+
+```{r check-temp-table-nrows}
+DBI::dbGetQuery(tempfile_con, "SELECT count(*) FROM test1")
+```
+
+Small table object, come forth: operator "new" gets you a working copy.
+
+```{r create-object-from-sql}
+sto1 <- smalltableobject$new(dbtype = "sqlite", host = tmpfile, tablename = "test1")
+```
+
+
+### Use base R square brackets [, ]
+We can definitely use the STO to peek inside, and do all sorts of analysis.
+
+```{r peek-around-the-new-object}
+nrow(sto1[]) ### Note brackets. _Always_ use brackets.
+sto1[1, 1]
+sto1[1, ]
+```
+
+### Use the STO where normal data frames are wanted
+Any function expecting a data frame can be used.
+
+```{r peek-with-functions-called}
+head(sto1[, 3]) ### Any function taking data frames will work.
+summary(sto1[, 1])
+```
+
+
+For all practical purposes, this is just another data frame.
+
+```{r peek-some-more}
+apply(sto1[1:10, ], MARGIN = 1, FUN = function(x)length(x)  )
+nrow(sto1[sto1[]$b > median(sto1[]$b), ])
+```
+
+### Even dplyr will accept the STO
+
+Dplyr will not notice the difference between your object and a real data frame.
+
+```{r show-dplyr-compatibility}
+library(dplyr, warn.conflicts = F)
+sto1[, ] %>% 
+  filter(b < 0) %>% ### Filter on named column
+  slice(1:2) ### This operation cannot be reliably performed, as rows gets shuffled.
+```
+
+### Writing back to underlying table
+
+The STO checks for type safety, when you assign new data to it.
+
+Beware, as each write, or assignment, to the data frame triggers an upload.
+
+
+
+### Avoiding data race conditions
+
+What if some joker changes the table you are working on? And you assign your changed data on top of his/hers? Will the STO overwrite ? Nope.
+
+With an advanced hashing of column values, the local data and the remote data are compared. Any differences will halt any updating that you are about to do. So the STO is extremely well behaved.
+
+Check this example where some lines are added to underlying table.
+
+
+
+```{r Tidy-up-connections-etc, include = FALSE }
+DBI::dbDisconnect(tempfile_con)
+```
+
