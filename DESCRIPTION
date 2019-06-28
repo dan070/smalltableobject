@@ -22,3 +22,9 @@ Imports:
   RSQLite,
   digest
 RoxygenNote: 6.1.1
+Suggests: 
+    knitr,
+    rmarkdown,
+    DBI,
+    dplyr
+VignetteBuilder: knitr
