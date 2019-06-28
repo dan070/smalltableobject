@@ -4,26 +4,26 @@
 \name{smalltableobject}
 \alias{smalltableobject}
 \title{Access (small) remote sql-tables just like data frames}
-\format{\code{\link{R6Class}} object with class 'smalltableobject'.}
+\format{\code{R6Class} object with S3 class 'smalltableobject'.}
 \usage{
 sto1 <- smalltableobject$new(...) # Named sql-table on db-server.
 sto1[1:10, 1]
-sto1[1, 1] <- 99 # Trigger write to db.
-sto1[, ] <- sto1[1:10, ] # Must use [,]
+sto1[1, 1] <- 99 # Trigger a write to db.
+sto1[, ] <- sto1[1:10, ] # NB: must use [,]
 }
 \value{
-Object of \code{\link{R6Class}} abstracting a database table.
+Database table wrapped in an R6 object.
 }
 \description{
-Use object to query database table just like a data frame.
-E.g tab[1, 1]    or   tab[2, 2] <- 'a'
+Use object to query database table just like a data frame, using
+...[x, y]  notation.
 }
 \section{Fields}{
 
 \describe{
 \item{\code{get_host}}{Name of host}
 
-\item{\code{get_dbtype}}{Type of DB. Now only "sqlite" allowed.}
+\item{\code{get_dbtype}}{Type of DB. Only "sqlite" allowed, currently.}
 
 \item{\code{get_db}}{Database part of table schema.}
 
@@ -33,10 +33,10 @@ E.g tab[1, 1]    or   tab[2, 2] <- 'a'
 \section{Methods}{
 
 \describe{
-  \item{Documentation}{For full source code go to https://github.com/dan070/smalltableobject}
-  \item{\code{subset_read}}{Used only with overloaded  operator. Public by neccessity.}
-  \item{\code{subset_write}}{Used only with overloaded sS operator. Public by neccessity.}
-  \item{\code{print}}{Prints some helpful internal info about object.}
+  \item{Documentation}{For full source code go to \href{https://github.com/dan070/smalltableobject}{Github repo} }
+  \item{\code{subset_read}}{Don't call directly. Used with overloaded operator. Public by neccessity.}
+  \item{\code{subset_write}}{Don't call directly. Used with overloaded operator. Public by neccessity.}
+  \item{\code{print}}{Prints some helpful internal info about object. Also default method of object.}
 }
 }
 
