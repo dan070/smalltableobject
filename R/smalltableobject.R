@@ -99,7 +99,7 @@ smalltableobject <-
           return(private$table_df[x])
         }
         if (Nargs == 2 && !missingx && missingy) {
-          return(private$table_df[x, ])
+          return(private$table_df[x,])
         }
         if (Nargs == 2 && missingx && !missingy) {
           return(private$table_df[, y])
@@ -108,7 +108,7 @@ smalltableobject <-
           return(private$table_df[x, y])
         }
         if (Nargs == 2 && missingx && missingy) {
-          return(private$table_df[, ])
+          return(private$table_df[,])
         }
         stop("Subsetting operator failed to find correct syntax.")
 
@@ -127,7 +127,6 @@ smalltableobject <-
                               missingx,
                               missingy,
                               missingvalue) {
-
         if (missingvalue)
           stop("Value for assignment [<-] not supplied!")
 
@@ -149,7 +148,7 @@ smalltableobject <-
         }
 
         if (Nargs == 2 && !missingx && missingy) {
-          tmp_table_df[x, ] <- value
+          tmp_table_df[x,] <- value
         }
         if (Nargs == 2 && missingx && !missingy) {
           tmp_table_df[, y] <- value
@@ -357,59 +356,62 @@ smalltableobject <-
       # Write local data frame to data base table.
       #~~~~~~~~~~~~~~~~~~~~~~~~
       save_table_to_database = function(df_to_save) {
+
+        tryCatch({}, finally = {
+          # Release connection
+          try({dbDisconnect(private$connection)}, silent = T)
+        })
         if (private$dbtype == "sqlite") {
           print("save_table_to_database...")
           # Check data base connection working
-          if (!dbIsValid(private$connection)) {
-            private$connection <-
-              dbConnect(drv = RSQLite::SQLite(), dbname = private$host)
-            print("new private$connection made")
-          }
-          checkmate::assert_true(DBI::dbIsValid(private$connection))
-          print("Check db connection.")
+          #if (!dbIsValid(private$connection)) {
+          private$connection <-
+            dbConnect(drv = RSQLite::SQLite(), dbname = private$host)
+          print("new private$connection made")
+        #}
+        checkmate::assert_true(DBI::dbIsValid(private$connection))
+        print("Check db connection.")
 
 
-          # Ensure no data race on local table versus target table
-          # ie. download table, compare hashes, else error.
-          tmp_data_table <-
-            dbReadTable(conn = private$connection, name = private$tablename) # Get DB-table.
-          tmp_hash <-
-            private$hash_data_frame(df_to_hash = tmp_data_table) # Hash DB-table.
-          print(private$table_hash)
-          print(tmp_hash)
-          checkmate::assert_true(x = private$table_hash == tmp_hash, .var.name = "Hash compare.") # Compare DB-table to local MD5.
-          print("Check hashes.")
+        # Ensure no data race on local table versus target table
+        # ie. download table, compare hashes, else error.
+        tmp_data_table <-
+          dbReadTable(conn = private$connection, name = private$tablename) # Get DB-table.
+        tmp_hash <-
+          private$hash_data_frame(df_to_hash = tmp_data_table) # Hash DB-table.
+        print(private$table_hash)
+        print(tmp_hash)
+        checkmate::assert_true(x = private$table_hash == tmp_hash, .var.name = "Hash compare.") # Compare DB-table to local MD5.
+        print("Check hashes.")
 
-          # ~~ Upsert the table ~~
-          # Truncate the data base table.
-          tmp <- dbSendQuery(
-            conn = private$connection,
-            statement = paste("DELETE FROM ", private$tablename)
-          )
-          dbClearResult(tmp)
-          print("Delete done.")
+        # ~~ Upsert the table ~~
+        # Truncate the data base table.
+        tmp <- dbSendQuery(
+          conn = private$connection,
+          statement = paste("DELETE FROM ", private$tablename)
+        )
+        dbClearResult(tmp)
+        print("Delete done.")
 
-          # Upsert whole private table to data base table.
-          tmp <- dbWriteTable(
-            conn = private$connection,
-            name = private$tablename,
-            value = df_to_save,
-            overwrite = T
-          )
-          print("Upsert entire table done.")
+        # Upsert whole private table to data base table.
+        tmp <- dbWriteTable(
+          conn = private$connection,
+          name = private$tablename,
+          value = df_to_save,
+          overwrite = T
+        )
+        print("Upsert entire table done.")
 
-          # Set the private table to the sent in table.
-          private$table_df <- df_to_save
-          print("Replace local table.")
+        # Set the private table to the sent in table.
+        private$table_df <- df_to_save
+        print("Replace local table.")
 
-          # Update private hash (of new table).
-          private$table_hash <-
-            private$hash_data_frame(private$table_df)
-          print("Updated hash ")
+        # Update private hash (of new table).
+        private$table_hash <-
+          private$hash_data_frame(private$table_df)
+        print("Updated hash ")
 
-          # Release connection
-          dbDisconnect(private$connection)
-        } # if private$dbtype == "sqlite" ends here.
+      } # if private$dbtype == "sqlite" ends here.
       }# save_table_to_database ends here.
     )# Private fields ends here
   )# Class ends here
