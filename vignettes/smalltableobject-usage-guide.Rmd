@@ -207,7 +207,19 @@ sto1[, ] %>%
 
 The STO checks for type safety, when you assign new data to it.
 
+```{r type-safety-check}
+
+class(sto1[, "a"])
+sto1[1, "a"] <- -999
+sto1[1, "a"] ### Only sqlite preserves ordering. Other DBs reshuffle.
+
+```
+
+
+
 Beware, as each write, or assignment, to the data frame triggers an upload.
+
+
 
 
 
