@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
   comment = "#---"
 )
 
-library(smalltableobject) ### Load the suspect up.
+library(smalltableobject) 
 
 create_test_data <- function(conn, dbtype = "sqlite", n = 100, seed = 20190427){
   #checkmate::assert_choice(dbtype, choices = c("sqlite"))
