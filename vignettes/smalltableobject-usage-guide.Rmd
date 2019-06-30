@@ -14,6 +14,9 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#---"
 )
+
+library(smalltableobject) ### Load the suspect up.
+
 create_test_data <- function(conn, dbtype = "sqlite", n = 100, seed = 20190427){
   #checkmate::assert_choice(dbtype, choices = c("sqlite"))
   #checkmate::assert_true(DBI::dbIsValid(conn))
@@ -114,69 +117,62 @@ get_sto <- function(n = 100, seed = 20202020){
   })#end trycatch
 }  
 
-
-
-```
-
-# Package SmallTableObject
-
-Tagline: Tired of handling small tables in a SQL-database? 
-
-### What this package does for you
-
-- Loads one SQL-table into local memory
-- Allows square brackets `[ , ]` notation to access it
-- Invisibly syncs back to DB after local changes
-- Strong type checking prevents R:s dynamic data frames from crashing the DB
-
-
-Think if you could access and manipulate a pesky little table just as easy as a data frame? Just using base R notation. Now, with `smalltableobject`, SQL-tables are just as easy as data frames. You're welcome.
-
-Package `smalltableobject` makes a (small) SQL-table into an object. Which supports [x, y] - notation. All for you, the RAD (Rock-star Analyst or Developer). 
-
-The package loads an SQL-table into memory. Changes overwrites the underlying table. Not elegant, but brutal.
-
-
-### Try the STO in action with random test data
-
-Start using the features of `smalltableobject` now! Or STO, or sto, for short. Yes, it was acctually developed in Stockholm, Sweden.
-
-Creating random test data, is done for demo purposes with a table-creating function. As default we make 102 rows of data, with 4 columns. The last column is a raw byte column, special for sqlite-tables.
-
-```{r setup}
-library(smalltableobject) ### Load the suspect up.
-
 tmpfile <- tempfile(fileext = ".sqlite") ### Temporary db.
 tempfile_con <- DBI::dbConnect(drv = RSQLite::SQLite(), dbname = tmpfile) ### Connection.
 create_test_data(conn = tempfile_con) ### Magic function creates test data.
+
+
 ```
 
+## Package SmallTableObject
 
-### Create STO object from 'test1' table
+**Tagline:** Tired of handling small tables in a SQL-database? 
 
-Behold! a small SQL-table `test1` for demo purps, on disk.
+Think if you could handle pesky little SQL-tables just using base R notation. Package `smalltableobject` makes (small) SQL-tables essentially into data frames. You're welcome. All for you, the RAD (Rock-star Analyst or Developer). 
+
+
+### Basic features
+
+- Fetch 1 SQL-table to local memory
+- Access its data using [x, y] - notation
+- Invisibly sync write-backs to DB
+- Strong type checking prevents R:s dynamic typing (iiiiiihhh!) crash the DB
+- Supports only SQLite for now...
+
+So in short... loads an SQL-table into memory + overwrites underlying table when changed. Not elegant, but brutal.
+
+Side note: `smalltableobject` or STO, or sto, for short was developed in _Sto_ckholm, Sweden.
+
+Before this vignette, I set up a demo table with 102 rows of random data, with 4 columns. One is a raw byte column, special for sqlite-tables. 
+
+
+### Create STO object from demo table
+
+We created a small SQL-table `test1` and now it's time to put it into a STO object.
+
+```{r create-object-from-sql}
+require(smalltableobject) ### Load pack.
+sto1 <- smalltableobject$new(dbtype = "sqlite", 
+                             host = tmpfile, 
+                             tablename = "test1") ### Get table.
+```
 
 ```{r check-temp-table-nrows}
 DBI::dbGetQuery(tempfile_con, "SELECT count(*) FROM test1")
+nrow(sto1[]) ### Note brackets. _Always_ use brackets.
 ```
 
-Small table object, come forth: operator "new" gets you a working copy.
+Now we have `sto1` as our object to access that table.
 
-```{r create-object-from-sql}
-sto1 <- smalltableobject$new(dbtype = "sqlite", host = tmpfile, tablename = "test1")
-```
-
-
-### Use base R square brackets [, ]
+### Use square brackets [, ] on STO
 We can definitely use the STO to peek inside, and do all sorts of analysis.
 
 ```{r peek-around-the-new-object}
-nrow(sto1[]) ### Note brackets. _Always_ use brackets.
 sto1[1, 1]
 sto1[1, ]
 ```
 
-### Use the STO where normal data frames are wanted
+### Use the STO where-ever data frames go
 Any function expecting a data frame can be used.
 
 ```{r peek-with-functions-called}
@@ -203,35 +199,58 @@ sto1[, ] %>%
   slice(1:2) ### This operation cannot be reliably performed, as rows gets shuffled.
 ```
 
-### Writing back to underlying table
+### The STO writes back to underlying table
 
 The STO checks for type safety, when you assign new data to it.
 
-```{r type-safety-check}
-
+```{r type-safety-check1}
 class(sto1[, "a"])
-sto1[1, "a"] <- -999
+sto1[1, "a"] <- -999 ### Triggers and immediate write to DB.
 sto1[1, "a"] ### Only sqlite preserves ordering. Other DBs reshuffle.
+```
+
+```{r type-safety-check2}
+sto1[1, "a"] <- "one cell wrong type"
+sto1[1, "a"] ### R has this behaviour. What can you do.
+```
+
+```{r type-safety-check3}
+tryCatch({
+  sto1[, "a"] <- "wrong type" ### At least with this we get an error.
+}, error = function(e){print(e)}) 
 
 ```
 
+Beware, as each write, or assignment, to the data frame triggers an upload. This behaviour could change in the future if need be.
 
 
-Beware, as each write, or assignment, to the data frame triggers an upload.
-
-
-
-
-
-### Avoiding data race conditions
+### Avoiding data race conditions in the STO
 
 What if some joker changes the table you are working on? And you assign your changed data on top of his/hers? Will the STO overwrite ? Nope.
 
-With an advanced hashing of column values, the local data and the remote data are compared. Any differences will halt any updating that you are about to do. So the STO is extremely well behaved.
+The STO does advanced hashing of columns. The local data and the remote data are compared using the hashing. If hashes differ, you get ERROR. Guaranteed to signal ERROR if row counts change, or entire rows are changed.
 
-Check this example where some lines are added to underlying table.
+This example adds some lines to underlying table. Any writes are now rejected. The STO is not forcing any writes.
+
+```{r data-race-rehearsal, include = FALSE }
+
+tmp <- DBI::dbExecute(tempfile_con, "INSERT INTO test1 VALUES(1, 2, 'c', x'010203a4')")
+
+tryCatch({
+sto1[1, 1] <- 909  
+}, error = function(e){print(e)})
 
 
+```
+
+### Summary use case of STO
+
+- The `smalltableobject` removes the hassle of updating small tables on a remote DB. 
+- Writes are transparent and immediate.
+- Type safety are somewhat enforced.
+- Only sqlite is supported at present. Plans are to handle Redshift and Snowflake.
+
+Thanks for using this piece of software. Make issues or pull requests or contact me on Github to suggest improvements.
 
 ```{r Tidy-up-connections-etc, include = FALSE }
 DBI::dbDisconnect(tempfile_con)
