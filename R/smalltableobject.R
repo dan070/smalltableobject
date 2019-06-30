@@ -160,10 +160,10 @@ smalltableobject <-
         # Assert: classes on temp data frame have not changed.
         tmp_class_value <- sapply(X = tmp_table_df,
                                   FUN = class)
-        print(tmp_class_value)
+        #print(tmp_class_value)
         tmp_class_df <- sapply(X = private$table_df,
                                FUN = class)
-        print(tmp_class_df)
+        #print(tmp_class_df)
 
         checkmate::assert_set_equal(x = tmp_class_df,
                                     y = tmp_class_value,
@@ -359,57 +359,57 @@ smalltableobject <-
 
         tryCatch({}, finally = {
           # Release connection
-          try({dbDisconnect(private$connection)}, silent = T)
+          try({RSQLite::dbDisconnect(private$connection)}, silent = T)
         })
         if (private$dbtype == "sqlite") {
-          print("save_table_to_database...")
+          #print("save_table_to_database...")
           # Check data base connection working
           #if (!dbIsValid(private$connection)) {
           private$connection <-
-            dbConnect(drv = RSQLite::SQLite(), dbname = private$host)
-          print("new private$connection made")
+            RSQLite::dbConnect(drv = RSQLite::SQLite(), dbname = private$host)
+          #print("new private$connection made")
         #}
         checkmate::assert_true(DBI::dbIsValid(private$connection))
-        print("Check db connection.")
+        #print("Check db connection.")
 
 
         # Ensure no data race on local table versus target table
         # ie. download table, compare hashes, else error.
         tmp_data_table <-
-          dbReadTable(conn = private$connection, name = private$tablename) # Get DB-table.
+          RSQLite::dbReadTable(conn = private$connection, name = private$tablename) # Get DB-table.
         tmp_hash <-
           private$hash_data_frame(df_to_hash = tmp_data_table) # Hash DB-table.
-        print(private$table_hash)
-        print(tmp_hash)
+        #print(private$table_hash)
+        #print(tmp_hash)
         checkmate::assert_true(x = private$table_hash == tmp_hash, .var.name = "Hash compare.") # Compare DB-table to local MD5.
-        print("Check hashes.")
+        #print("Check hashes.")
 
         # ~~ Upsert the table ~~
         # Truncate the data base table.
-        tmp <- dbSendQuery(
+        tmp <- RSQLite::dbSendQuery(
           conn = private$connection,
           statement = paste("DELETE FROM ", private$tablename)
         )
-        dbClearResult(tmp)
-        print("Delete done.")
+        RSQLite::dbClearResult(tmp)
+        #print("Delete done.")
 
         # Upsert whole private table to data base table.
-        tmp <- dbWriteTable(
+        tmp <- RSQLite::dbWriteTable(
           conn = private$connection,
           name = private$tablename,
           value = df_to_save,
           overwrite = T
         )
-        print("Upsert entire table done.")
+        #print("Upsert entire table done.")
 
         # Set the private table to the sent in table.
         private$table_df <- df_to_save
-        print("Replace local table.")
+        #print("Replace local table.")
 
         # Update private hash (of new table).
         private$table_hash <-
           private$hash_data_frame(private$table_df)
-        print("Updated hash ")
+        #print("Updated hash ")
 
       } # if private$dbtype == "sqlite" ends here.
       }# save_table_to_database ends here.
