@@ -296,7 +296,7 @@ smalltableobject <-
       # ~ Finalize ~
       #~~~~~~~~~~~~~~~~~~~~~~~~
       finalize = function() {
-        print("Finalize function at gc on object.")
+        #print("Finalize function at gc on object.")
         if (private$dbtype == "sqlite") {
           # Clean up the connection.
           try(suppressWarnings(RSQLite::dbDisconnect(private$connection)), silent = T)
