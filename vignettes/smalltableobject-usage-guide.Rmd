@@ -1,7 +1,5 @@
 ---
-title: "smalltableobject-usage-guide"
-author: "Vignette by Dan G"
-date: "Rendered on `r Sys.Date()`"
+title: "SmallTableObject tutorial"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Usage Guide to smalltableobject}
@@ -124,31 +122,32 @@ create_test_data(conn = tempfile_con) ### Magic function creates test data.
 
 ```
 
-## Package SmallTableObject
+## The SmallTableObject purpose
 
-**Tagline:** Tired of handling small tables in a SQL-database? 
-
-Think if you could handle pesky little SQL-tables just using base R notation. Package `smalltableobject` makes (small) SQL-tables essentially into data frames. You're welcome. All for you, the RAD (Rock-star Analyst or Developer). 
+#### Package `smalltableobject` makes (small) SQL-tables essentially into data frames. That means you can access pesky little SQL-tables using any R function expecting a data frame. You're welcome. 
 
 
-### Basic features
+
+**Package features**
 
 - Fetch 1 SQL-table to local memory
 - Access its data using [x, y] - notation
-- Invisibly sync write-backs to DB
-- Strong type checking prevents R:s dynamic typing (iiiiiihhh!) crash the DB
+- `sto[x, y] <- m` immediately syncs to DB
+- Strong type checking prevents type changes from crashing the DB
 - Supports only SQLite for now...
 
-So in short... loads an SQL-table into memory + overwrites underlying table when changed. Not elegant, but brutal.
+*In short:* loads an SQL-table into memory + overwrites underlying table when changed. Not elegant, but brutal.
 
-Side note: `smalltableobject` or STO, or sto, for short was developed in _Sto_ckholm, Sweden.
+### Banter
+*Side note* `smalltableobject` or STO, or sto, for short was developed in _Sto_ckholm, Sweden.
 
-Before this vignette, I set up a demo table with 102 rows of random data, with 4 columns. One is a raw byte column, special for sqlite-tables. 
+*Package Tagline:* Tired of moving small tables between R and a SQL-database? Try `smalltableobject`!
 
+*Intended audience:* the RAD (Rock-star Analyst or Developer). 
 
 ### Create STO object from demo table
 
-We created a small SQL-table `test1` and now it's time to put it into a STO object.
+We created a small SQL-table `test1` and now it's time to put it into a STO object. One column is a raw byte column, special for sqlite-tables. 
 
 ```{r create-object-from-sql}
 require(smalltableobject) ### Load pack.
@@ -165,7 +164,7 @@ nrow(sto1[]) ### Note brackets. _Always_ use brackets.
 Now we have `sto1` as our object to access that table.
 
 ### Use square brackets [, ] on STO
-We can definitely use the STO to peek inside, and do all sorts of analysis.
+We can definitely use the STO as a regular data frame.
 
 ```{r peek-around-the-new-object}
 sto1[1, 1]
@@ -221,14 +220,14 @@ tryCatch({
 
 ```
 
-Beware, as each write, or assignment, to the data frame triggers an upload. This behaviour could change in the future if need be.
+Beware, as each write, or assignment, to the data frame triggers an upload. This behaviour could change in the future if need be to allow for caching of writes, or using a unique key and only updating changed rows.
 
 
 ### Avoiding data race conditions in the STO
 
 What if some joker changes the table you are working on? And you assign your changed data on top of his/hers? Will the STO overwrite ? Nope.
 
-The STO does advanced hashing of columns. The local data and the remote data are compared using the hashing. If hashes differ, you get ERROR. Guaranteed to signal ERROR if row counts change, or entire rows are changed.
+The STO does a simple hashing of columns. The local data and the remote data are compared using the hashing. If hashes differ, you get ERROR. Guaranteed to signal ERROR if row counts change, or parts of rows are changed.
 
 This example adds some lines to underlying table. Any writes are now rejected. The STO is not forcing any writes.
 
@@ -245,12 +244,14 @@ sto1[1, 1] <- 909
 
 ### Summary use case of STO
 
+Great work reading all the way down! Here is the summary :
+
 - The `smalltableobject` removes the hassle of updating small tables on a remote DB. 
 - Writes are transparent and immediate.
 - Type safety are somewhat enforced.
 - Only sqlite is supported at present. Plans are to handle Redshift and Snowflake.
 
-Thanks for using this piece of software. Make issues or pull requests or contact me on Github to suggest improvements.
+Thanks for using this piece of software. Make issues or pull requests or contact me on Github to suggest improvements. Or report bugs.
 
 ```{r Tidy-up-connections-etc, include = FALSE }
 DBI::dbDisconnect(tempfile_con)
