@@ -26,5 +26,6 @@ Suggests:
     knitr,
     rmarkdown,
     DBI,
-    dplyr
+    dplyr,
+    testthat (>= 2.1.0)
 VignetteBuilder: knitr
