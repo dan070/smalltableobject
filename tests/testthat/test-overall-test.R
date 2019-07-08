@@ -1,4 +1,5 @@
 library(smalltableobject)
+library(testthat)
 
 # /////////////////////////////////////////////////////////////////////
 # Func: Create data for specific database, given a connection.
@@ -168,6 +169,11 @@ compare_dfs <- function(...){
 }
 
 
+# /////////////////////////////////////////////////////////////////////
+# Get original table to compare with.
+# /////////////////////////////////////////////////////////////////////
+
+
 
 # /////////////////////////////////////////////////////////////////////
 # Tests
@@ -182,12 +188,23 @@ test_that("Create table object from nonexistent db should not be possible.", {
   })
 })
 
+
+# Make re-usable object for the tests.
 sto2 <- get_sto()
-tmp <- sto2[1, 1]
+
+# Make a copy of original table to compare in tests.
+con_temp <- DBI::dbConnect(drv = RSQLite::SQLite(), dbname = sto2$get_host)
+original_table_df <- DBI::dbGetQuery(con_temp, "select * from test1")
+DBI::dbDisconnect(con_temp)
+
+
+
 test_that("Returned value is not null", {
+  tmp <- sto2[1, 1]
   expect_true({!is.null(tmp)})
 })
 test_that("Returned value has 1 col", {
+  tmp <- sto2[1, 1]
   expect_true({length(tmp) == 1})
 })
 
@@ -202,8 +219,9 @@ test_that("sto2[1, ] has correct dimensions", {
 })
 
 
-tmp <- sto2[, 1]
+
 test_that("sto2[, 1] has correct dimensions", {
+  tmp <- sto2[, 1]
   expect_true(!is.null(tmp))
   expect_true(length(length(tmp)) == 1)
   expect_true(length(tmp) == 102)
@@ -211,10 +229,10 @@ test_that("sto2[, 1] has correct dimensions", {
 })
 
 
-temp_booleanvec <- sample(x = c(TRUE, FALSE), size = nrow(sto2[,]), replace = T)
-tmp <- sto2[temp_booleanvec, ]
 
 test_that("Boolean vector subsetting works", {
+  temp_booleanvec <- sample(x = c(TRUE, FALSE), size = nrow(sto2[,]), replace = T)
+  tmp <- sto2[temp_booleanvec, ]
   expect_true(!is.null(tmp))
   expect_true(length(length(tmp)) == 1)
   expect_true(length(tmp) == 4)
@@ -224,10 +242,94 @@ test_that("Boolean vector subsetting works", {
 
 
 
+test_that("Column subsetting with character 1", {
+  tmp <- sto2[, "a"]
+  expect_true(!is.null(tmp))
+  expect_true(length(length(tmp)) == 1)
+  expect_true(length(tmp) == 102)
+})
+
+test_that("Column subsetting with character 2", {
+  tmp <- sto2[, "d"]
+  expect_true(!is.null(tmp))
+  expect_true(length(length(tmp)) == 1)
+  expect_true(length(tmp) == 102)
+})
+
+
+test_that("Out of range row subsetting ie: sto[ 99999999, ]", {
+  tmp <- sto2[99999999, ]
+  expect_true(!is.null(tmp))
+  expect_true(length(length(tmp)) == 1)
+  expect_true(length(tmp) == 4)
+  expect_true(nrow(tmp) == 1)
+  # Not all classes (eg bit64::integer64) returns NA in this setting.
+  # So we cannot really test for NA on all columns for "ghost"/out-of-range rows.
+})
+
+
+
+test_that("Subsetting negative rows ie: sto[ -1, ] ", {
+  tmp <- sto2[-c(1:100), ]
+  expect_true(!is.null(tmp))
+  expect_true(length(length(tmp)) == 1)
+  expect_true(length(tmp) == 4)
+  expect_true(nrow(tmp) == 2)
+})
+
+
+test_that("Subsetting negative cols ie: sto[ , -1]", {
+  tmp <- sto2[, -c(1:2)]
+  expect_true(!is.null(tmp))
+  expect_true(length(length(tmp)) == 1)
+  expect_true(length(tmp) == 2)
+  expect_true(nrow(tmp) == 102)
+})
+
+test_that("Subsetting negative rows and cols ie: sto[ -1, -1]", {
+  tmp <- sto2[-c(1:100), -c(1:2)]
+  expect_true(!is.null(tmp))
+  expect_true(length(length(tmp)) == 1)
+  expect_true(length(tmp) == 2)
+  expect_true(nrow(tmp) == 2)
+})
+
+test_that("Subsetting total data frame ie: sto[ , ]", {
+  tmp <- sto2[, ]
+  expect_true(!is.null(tmp))
+  expect_true(length(length(tmp)) == 1)
+  expect_true(length(tmp) == 4)
+  expect_true(nrow(tmp) == 102)
+})
+
+test_that("Subsetting outside data frame ie: sto[ , 'nonexistingcolumn']", {
+  expect_error(sto2[, "non-existing-column"])
+})
+
+
+test_that("Subsetting outside data frame ie: sto[-999 , ]", {
+  expect_equal(dim(sto2[-99999, ]), dim(sto2[]))
+})
+
+test_that("Subsetting with NA ie: sto[NA , NA]", {
+  expect_error(sto2[NA, NA])
+})
+
+test_that("Class labels from original table is still intact after reading a bit.", {
+  expect_setequal(paste(sapply(original_table_df, class)), paste(sapply(sto2[], class)))
+})
+
+test_that("", {
+  expect_equal(2 * 2, 4)
+})
+test_that("", {
+  expect_equal(2 * 2, 4)
+})
+
+
+
 
 sto2 <- NULL
-
-
 
 test_that("we got here", {
   expect_equal(2 * 2, 4)
